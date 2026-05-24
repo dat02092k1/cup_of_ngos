@@ -124,6 +124,23 @@ export default function PostForm({ post }: PostFormProps) {
   function handlePublishConfirm() {
     startTransition(async () => {
       if (publishDialog.mode === "publish") {
+        const saveRes = await autosavePost(post.id, {
+          title,
+          slug,
+          excerpt,
+          cover_image_url: coverImageUrl,
+          tags,
+          content_json: contentJson,
+        });
+        if (!saveRes.ok) {
+          toast({
+            variant: "destructive",
+            title: "Lưu nháp thất bại trước khi đăng",
+            description: saveRes.error,
+          });
+          setPublishDialog((prev) => ({ ...prev, open: false }));
+          return;
+        }
         const res = await publishPost(post.id);
         if (res.ok) {
           toast({ title: "Đã đăng bài" });

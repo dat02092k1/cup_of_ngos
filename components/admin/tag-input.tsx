@@ -60,7 +60,13 @@ export default function TagInput({ value, onChange, suggestions }: TagInputProps
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder={value.length === 0 ? "Thêm tag..." : ""}
+          onBlur={() => {
+            if (input.trim()) {
+              addTag(input.trim());
+              setInput("");
+            }
+          }}
+          placeholder={value.length === 0 ? "Thêm tag rồi nhấn Enter..." : ""}
           className="flex-1 min-w-[6rem] outline-none bg-transparent text-sm"
         />
       </div>

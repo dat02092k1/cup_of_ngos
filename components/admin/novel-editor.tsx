@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef } from "react";
+import { useMemo } from "react";
 import {
   EditorRoot,
   EditorContent,
@@ -12,7 +12,11 @@ import {
   Placeholder,
   handleImagePaste,
   handleImageDrop,
+  handleCommandNavigation,
   createImageUpload,
+  createSuggestionItems,
+  renderItems,
+  type SuggestionItem,
 } from "novel";
 import type { JSONContent } from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
@@ -53,7 +57,129 @@ const uploadFn = createImageUpload({
         title: "Tải ảnh thất bại",
         description: "Chỉ hỗ trợ tệp ảnh",
       });
+      return false;
     }
+    if (file.size > 8 * 1024 * 1024) {
+      toast({
+        variant: "destructive",
+        title: "Tải ảnh thất bại",
+        description: "Ảnh vượt quá giới hạn 8MB",
+      });
+      return false;
+    }
+    return true;
+  },
+});
+
+const suggestionItems: SuggestionItem[] = createSuggestionItems([
+  {
+    title: "Tiêu đề 1",
+    description: "Tiêu đề lớn",
+    searchTerms: ["h1", "tieu de 1", "heading"],
+    icon: <span className="font-bold">H1</span>,
+    command: ({ editor, range }) => {
+      editor.chain().focus().deleteRange(range).toggleHeading({ level: 1 }).run();
+    },
+  },
+  {
+    title: "Tiêu đề 2",
+    description: "Tiêu đề vừa",
+    searchTerms: ["h2", "tieu de 2"],
+    icon: <span className="font-bold">H2</span>,
+    command: ({ editor, range }) => {
+      editor.chain().focus().deleteRange(range).toggleHeading({ level: 2 }).run();
+    },
+  },
+  {
+    title: "Tiêu đề 3",
+    description: "Tiêu đề nhỏ",
+    searchTerms: ["h3", "tieu de 3"],
+    icon: <span className="font-bold">H3</span>,
+    command: ({ editor, range }) => {
+      editor.chain().focus().deleteRange(range).toggleHeading({ level: 3 }).run();
+    },
+  },
+  {
+    title: "Danh sách",
+    description: "Danh sách dấu chấm",
+    searchTerms: ["ul", "bullet", "danh sach"],
+    icon: <span className="font-bold">•</span>,
+    command: ({ editor, range }) => {
+      editor.chain().focus().deleteRange(range).toggleBulletList().run();
+    },
+  },
+  {
+    title: "Danh sách số",
+    description: "Danh sách đánh số",
+    searchTerms: ["ol", "numbered", "danh sach so"],
+    icon: <span className="font-bold">1.</span>,
+    command: ({ editor, range }) => {
+      editor.chain().focus().deleteRange(range).toggleOrderedList().run();
+    },
+  },
+  {
+    title: "Việc cần làm",
+    description: "Danh sách checklist",
+    searchTerms: ["todo", "task", "viec can lam"],
+    icon: <span className="font-bold">☑</span>,
+    command: ({ editor, range }) => {
+      editor.chain().focus().deleteRange(range).toggleTaskList().run();
+    },
+  },
+  {
+    title: "Trích dẫn",
+    description: "Khối trích dẫn",
+    searchTerms: ["quote", "blockquote", "trich dan"],
+    icon: <span className="font-bold">&ldquo;</span>,
+    command: ({ editor, range }) => {
+      editor.chain().focus().deleteRange(range).toggleBlockquote().run();
+    },
+  },
+  {
+    title: "Khối mã",
+    description: "Code block",
+    searchTerms: ["code", "khoi ma"],
+    icon: <span className="font-mono font-bold">{"{}"}</span>,
+    command: ({ editor, range }) => {
+      editor.chain().focus().deleteRange(range).toggleCodeBlock().run();
+    },
+  },
+  {
+    title: "Đường kẻ ngang",
+    description: "Chia phần",
+    searchTerms: ["hr", "divider", "duong ke"],
+    icon: <span className="font-bold">—</span>,
+    command: ({ editor, range }) => {
+      editor.chain().focus().deleteRange(range).setHorizontalRule().run();
+    },
+  },
+  {
+    title: "Ảnh",
+    description: "Tải ảnh từ máy",
+    searchTerms: ["img", "image", "anh", "picture"],
+    icon: <span>🖼</span>,
+    command: ({ editor, range }) => {
+      editor.chain().focus().deleteRange(range).run();
+      const input = document.createElement("input");
+      input.type = "file";
+      input.accept = "image/*";
+      input.onchange = async (e) => {
+        const file = (e.target as HTMLInputElement).files?.[0];
+        if (!file) return;
+        const url = await uploadImageFile(file);
+        if (url) {
+          editor.chain().focus().setImage({ src: url }).run();
+        }
+      };
+      input.click();
+    },
+  },
+]);
+
+const slashCommand = Command.configure({
+  suggestion: {
+    items: () => suggestionItems,
+    render: renderItems,
   },
 });
 
@@ -68,20 +194,15 @@ const EMPTY_DOC: JSONContent = {
   content: [{ type: "paragraph" }],
 };
 
-const INSERT_IMAGE_EVENT = "novel-insert-image";
-
 export default function NovelEditor({
   value,
   onChange,
   placeholder,
 }: NovelEditorProps) {
-  const commandRef = useRef<HTMLDivElement>(null);
   const initialContent = value ?? EMPTY_DOC;
 
-  // Build extensions with placeholder text.
-  // Type cast is required because novel bundles its own @tiptap/core
-  // (novel/node_modules/@tiptap/core) which differs from the project-level one.
-  // At runtime the extension objects are compatible.
+  // Novel bundles its own @tiptap/core; the runtime objects are compatible
+  // but the structural types diverge — cast to any[] to bridge them.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const editorExtensions: any[] = useMemo(
     () => [
@@ -94,270 +215,59 @@ export default function NovelEditor({
       Placeholder.configure({
         placeholder: placeholder ?? "Nhập nội dung... (gõ '/' cho lệnh)",
       }),
-      Command.configure({
-        suggestion: {
-          items: () => [],
-        },
-      }),
+      slashCommand,
     ],
-    // placeholder is only used for the initial extension config; re-creating
-    // extensions on every placeholder change would re-mount the editor, so
-    // we intentionally omit it from the dep array here.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [],
   );
-
-  function handleSlashImageInsert() {
-    const input = document.createElement("input");
-    input.type = "file";
-    input.accept = "image/*";
-    input.onchange = async (e) => {
-      const file = (e.target as HTMLInputElement).files?.[0];
-      if (!file) return;
-      const url = await uploadImageFile(file);
-      if (url) {
-        document.dispatchEvent(
-          new CustomEvent<{ url: string }>(INSERT_IMAGE_EVENT, {
-            detail: { url },
-          }),
-        );
-      }
-    };
-    input.click();
-  }
 
   return (
     <div className="relative">
       <EditorRoot>
         <EditorContent
-          ref={commandRef}
           initialContent={initialContent}
           extensions={editorExtensions}
           className="prose dark:prose-invert max-w-none"
           editorProps={{
             attributes: {
               class:
-                "prose dark:prose-invert max-w-none focus:outline-none min-h-[200px] px-4 py-2",
+                "prose dark:prose-invert max-w-none focus:outline-none min-h-[300px] px-4 py-2",
             },
-            handlePaste: (view, event) => {
-              if (
-                event.clipboardData?.files &&
-                event.clipboardData.files.length > 0
-              ) {
-                return handleImagePaste(view, event, uploadFn);
-              }
-              return false;
-            },
-            handleDrop: (view, event, _slice, moved) => {
-              return handleImageDrop(
-                view,
-                event as DragEvent,
-                moved,
-                uploadFn,
-              );
-            },
+            handleKeyDown: (_view, event) => handleCommandNavigation(event),
+            handlePaste: (view, event) =>
+              handleImagePaste(view, event, uploadFn),
+            handleDrop: (view, event, _slice, moved) =>
+              handleImageDrop(view, event, moved, uploadFn),
           }}
           onUpdate={({ editor }) => {
             onChange(editor.getJSON(), editor.getHTML());
           }}
-          onCreate={({ editor }) => {
-            const handler = (e: Event) => {
-              const url = (e as CustomEvent<{ url: string }>).detail?.url;
-              if (url) {
-                editor.chain().focus().setImage({ src: url }).run();
-              }
-            };
-            document.addEventListener(INSERT_IMAGE_EVENT, handler);
-            editor.on("destroy", () => {
-              document.removeEventListener(INSERT_IMAGE_EVENT, handler);
-            });
-          }}
         >
-          <EditorCommand className="z-50 h-auto max-h-[330px] overflow-y-auto rounded-md border border-muted bg-background px-1 py-2 shadow-md transition-all">
+          <EditorCommand className="z-50 h-auto max-h-[330px] overflow-y-auto rounded-md border border-border bg-background px-1 py-2 shadow-md transition-all">
             <EditorCommandEmpty className="px-2 py-1 text-sm text-muted-foreground">
               Không tìm thấy lệnh
             </EditorCommandEmpty>
             <EditorCommandList>
-              <EditorCommandItem
-                value="heading1"
-                keywords={["h1", "tieu de 1", "tiêu đề 1"]}
-                onCommand={({ editor, range }) => {
-                  editor
-                    .chain()
-                    .focus()
-                    .deleteRange(range)
-                    .toggleHeading({ level: 1 })
-                    .run();
-                }}
-              >
-                <div className="flex items-center gap-2 px-2 py-1">
-                  <span className="w-6 text-sm font-bold">H1</span>
-                  <span className="text-sm">Tiêu đề 1</span>
-                </div>
-              </EditorCommandItem>
-
-              <EditorCommandItem
-                value="heading2"
-                keywords={["h2", "tieu de 2", "tiêu đề 2"]}
-                onCommand={({ editor, range }) => {
-                  editor
-                    .chain()
-                    .focus()
-                    .deleteRange(range)
-                    .toggleHeading({ level: 2 })
-                    .run();
-                }}
-              >
-                <div className="flex items-center gap-2 px-2 py-1">
-                  <span className="w-6 text-sm font-bold">H2</span>
-                  <span className="text-sm">Tiêu đề 2</span>
-                </div>
-              </EditorCommandItem>
-
-              <EditorCommandItem
-                value="heading3"
-                keywords={["h3", "tieu de 3", "tiêu đề 3"]}
-                onCommand={({ editor, range }) => {
-                  editor
-                    .chain()
-                    .focus()
-                    .deleteRange(range)
-                    .toggleHeading({ level: 3 })
-                    .run();
-                }}
-              >
-                <div className="flex items-center gap-2 px-2 py-1">
-                  <span className="w-6 text-sm font-bold">H3</span>
-                  <span className="text-sm">Tiêu đề 3</span>
-                </div>
-              </EditorCommandItem>
-
-              <EditorCommandItem
-                value="bulletList"
-                keywords={["ul", "danh sach", "danh sách", "bullet"]}
-                onCommand={({ editor, range }) => {
-                  editor
-                    .chain()
-                    .focus()
-                    .deleteRange(range)
-                    .toggleBulletList()
-                    .run();
-                }}
-              >
-                <div className="flex items-center gap-2 px-2 py-1">
-                  <span className="w-6 text-sm font-bold">•</span>
-                  <span className="text-sm">Danh sách</span>
-                </div>
-              </EditorCommandItem>
-
-              <EditorCommandItem
-                value="orderedList"
-                keywords={["ol", "numbered", "danh sach so", "danh sách số"]}
-                onCommand={({ editor, range }) => {
-                  editor
-                    .chain()
-                    .focus()
-                    .deleteRange(range)
-                    .toggleOrderedList()
-                    .run();
-                }}
-              >
-                <div className="flex items-center gap-2 px-2 py-1">
-                  <span className="w-6 text-sm font-bold">1.</span>
-                  <span className="text-sm">Danh sách số</span>
-                </div>
-              </EditorCommandItem>
-
-              <EditorCommandItem
-                value="taskList"
-                keywords={["todo", "task", "viec can lam", "việc cần làm"]}
-                onCommand={({ editor, range }) => {
-                  editor
-                    .chain()
-                    .focus()
-                    .deleteRange(range)
-                    .toggleTaskList()
-                    .run();
-                }}
-              >
-                <div className="flex items-center gap-2 px-2 py-1">
-                  <span className="w-6 text-sm font-bold">☑</span>
-                  <span className="text-sm">Việc cần làm</span>
-                </div>
-              </EditorCommandItem>
-
-              <EditorCommandItem
-                value="blockquote"
-                keywords={["quote", "trich dan", "trích dẫn"]}
-                onCommand={({ editor, range }) => {
-                  editor
-                    .chain()
-                    .focus()
-                    .deleteRange(range)
-                    .toggleBlockquote()
-                    .run();
-                }}
-              >
-                <div className="flex items-center gap-2 px-2 py-1">
-                  <span className="w-6 text-sm font-bold">&ldquo;</span>
-                  <span className="text-sm">Trích dẫn</span>
-                </div>
-              </EditorCommandItem>
-
-              <EditorCommandItem
-                value="codeBlock"
-                keywords={["code", "khoi ma", "khối mã"]}
-                onCommand={({ editor, range }) => {
-                  editor
-                    .chain()
-                    .focus()
-                    .deleteRange(range)
-                    .toggleCodeBlock()
-                    .run();
-                }}
-              >
-                <div className="flex items-center gap-2 px-2 py-1">
-                  <span className="w-6 font-mono text-sm font-bold">{"{}"}</span>
-                  <span className="text-sm">Khối mã</span>
-                </div>
-              </EditorCommandItem>
-
-              <EditorCommandItem
-                value="horizontalRule"
-                keywords={[
-                  "hr",
-                  "divider",
-                  "duong ke ngang",
-                  "đường kẻ ngang",
-                ]}
-                onCommand={({ editor, range }) => {
-                  editor
-                    .chain()
-                    .focus()
-                    .deleteRange(range)
-                    .setHorizontalRule()
-                    .run();
-                }}
-              >
-                <div className="flex items-center gap-2 px-2 py-1">
-                  <span className="w-6 text-sm font-bold">—</span>
-                  <span className="text-sm">Đường kẻ ngang</span>
-                </div>
-              </EditorCommandItem>
-
-              <EditorCommandItem
-                value="image"
-                keywords={["img", "anh", "ảnh", "image"]}
-                onCommand={({ editor, range }) => {
-                  editor.chain().focus().deleteRange(range).run();
-                  handleSlashImageInsert();
-                }}
-              >
-                <div className="flex items-center gap-2 px-2 py-1">
-                  <span className="w-6 text-sm font-bold">🖼</span>
-                  <span className="text-sm">Ảnh</span>
-                </div>
-              </EditorCommandItem>
+              {suggestionItems.map((item) => (
+                <EditorCommandItem
+                  key={item.title}
+                  value={item.title}
+                  onCommand={(val) => item.command?.(val)}
+                  className="flex w-full cursor-pointer items-center gap-3 rounded-md px-2 py-1.5 text-sm hover:bg-accent aria-selected:bg-accent"
+                >
+                  <div className="flex h-8 w-8 items-center justify-center rounded-md border border-border bg-background">
+                    {item.icon}
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="font-medium">{item.title}</span>
+                    {item.description ? (
+                      <span className="text-xs text-muted-foreground">
+                        {item.description}
+                      </span>
+                    ) : null}
+                  </div>
+                </EditorCommandItem>
+              ))}
             </EditorCommandList>
           </EditorCommand>
         </EditorContent>
