@@ -1,0 +1,25 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cmd.exe /c \"cd /d D:\\\\\\\\projects\\\\\\\\vibe_blog && npm run build\")",
+      "Bash(echo \"EXIT: $?\")",
+      "Bash(New-Item -ItemType Directory -Force -Path \"d:\\\\projects\\\\vibe_blog\\\\app\\\\\\(public\\)\\\\blog\\\\[slug]\")",
+      "Bash(mkdir -p \"/mnt/d/projects/vibe_blog/app/\\(public\\)/blog/[slug]\")",
+      "Bash(powershell.exe -Command \"cd 'd:\\\\projects\\\\vibe_blog'; npm run build\")",
+      "Bash(powershell.exe -Command \"Test-Path 'd:\\\\projects\\\\vibe_blog\\\\app\\\\\\(public\\)\\\\blog\\\\[slug]\\\\page.tsx'\")",
+      "Bash(powershell.exe -Command \"Get-ChildItem 'd:\\\\projects\\\\vibe_blog\\\\app\\\\\\(public\\)'\")",
+      "Bash(powershell.exe -Command \"New-Item -ItemType Directory -Force -Path 'd:\\\\projects\\\\vibe_blog\\\\app\\\\\\(public\\)\\\\blog\\\\[slug]'\")",
+      "Bash(powershell.exe -Command \"Get-ChildItem 'd:\\\\projects\\\\vibe_blog\\\\app\\\\\\(public\\)\\\\blog'\")",
+      "Bash(powershell.exe -Command \"Get-ChildItem -LiteralPath 'd:\\\\projects\\\\vibe_blog\\\\app\\\\\\(public\\)\\\\blog\\\\[slug]'\")",
+      "Bash(New-Item -ItemType Directory -Force -Path \"D:\\\\projects\\\\vibe_blog\\\\app\\\\\\(public\\)\\\\tags\\\\[tag]\")",
+      "Bash(mkdir -p \"/mnt/d/projects/vibe_blog/app/\\(public\\)/tags/[tag]\" && echo \"Directory created\")",
+      "Bash(cmd /c \"cd /d D:\\\\projects\\\\vibe_blog && npm run build\")",
+      "Bash(powershell.exe -Command \"Get-ChildItem 'D:\\\\projects\\\\vibe_blog\\\\app\\\\\\(public\\)\\\\tags\\\\[tag]'\")",
+      "Bash(powershell.exe -Command \"New-Item -ItemType Directory -Force -Path 'D:\\\\projects\\\\vibe_blog\\\\app\\\\\\(public\\)\\\\tags\\\\[tag]'\")"
+    ],
+    "additionalDirectories": [
+      "\\mnt\\d\\projects\\vibe_blog\\app\\(public)\\blog",
+      "\\mnt\\d\\projects\\vibe_blog\\app\\(public)\\tags"
+    ]
+  }
+}

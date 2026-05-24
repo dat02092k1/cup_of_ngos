@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(powershell.exe -Command \"Get-Content 'D:\\\\projects\\\\vibe_blog\\\\package.json'\")",
+      "Bash(powershell.exe -Command \"cd 'D:\\\\projects\\\\vibe_blog'; npm run build 2>&1\" timeout=180000)"
+    ]
+  }
+}
