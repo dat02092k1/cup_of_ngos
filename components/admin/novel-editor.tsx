@@ -9,7 +9,14 @@ import {
   EditorCommandItem,
   EditorCommandEmpty,
   Command,
+  StarterKit,
+  TiptapImage,
+  TiptapLink,
+  TaskList,
+  TaskItem,
+  CodeBlockLowlight,
   Placeholder,
+  UploadImagesPlugin,
   handleImagePaste,
   handleImageDrop,
   handleCommandNavigation,
@@ -19,12 +26,6 @@ import {
   type SuggestionItem,
 } from "novel";
 import type { JSONContent } from "@tiptap/core";
-import StarterKit from "@tiptap/starter-kit";
-import Image from "@tiptap/extension-image";
-import Link from "@tiptap/extension-link";
-import { TaskList } from "@tiptap/extension-task-list";
-import { TaskItem } from "@tiptap/extension-task-item";
-import CodeBlockLowlight from "@tiptap/extension-code-block-lowlight";
 import { createLowlight, common } from "lowlight";
 import { uploadImage } from "@/lib/actions/upload";
 import { toast } from "@/components/ui/use-toast";
@@ -49,7 +50,7 @@ export async function uploadImageFile(file: File): Promise<string | null> {
 }
 
 const uploadFn = createImageUpload({
-  onUpload: uploadImageFile,
+  onUpload: (file) => uploadImageFile(file).then((url) => url ?? ""),
   validateFn: (file) => {
     if (!file.type.startsWith("image/")) {
       toast({
@@ -166,10 +167,9 @@ const suggestionItems: SuggestionItem[] = createSuggestionItems([
       input.onchange = async (e) => {
         const file = (e.target as HTMLInputElement).files?.[0];
         if (!file) return;
-        const url = await uploadImageFile(file);
-        if (url) {
-          editor.chain().focus().setImage({ src: url }).run();
-        }
+        const pos = editor.view.state.selection.from;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (uploadFn as any)(file, editor.view, pos);
       };
       input.click();
     },
@@ -201,14 +201,16 @@ export default function NovelEditor({
 }: NovelEditorProps) {
   const initialContent = value ?? EMPTY_DOC;
 
-  // Novel bundles its own @tiptap/core; the runtime objects are compatible
-  // but the structural types diverge — cast to any[] to bridge them.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const editorExtensions: any[] = useMemo(
     () => [
       StarterKit.configure({ codeBlock: false }),
-      Image,
-      Link.configure({ openOnClick: false, autolink: true }),
+      TiptapImage.extend({
+        addProseMirrorPlugins() {
+          return [UploadImagesPlugin({ imageClass: "opacity-40 rounded-lg" })];
+        },
+      }).configure({ allowBase64: true, inline: false }),
+      TiptapLink.configure({ openOnClick: false, autolink: true }),
       TaskList,
       TaskItem.configure({ nested: true }),
       CodeBlockLowlight.configure({ lowlight }),
